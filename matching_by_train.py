@@ -12,8 +12,8 @@ def matching_by_train():
     # Zn_val = 30 - 50j
 
     # Задача 2 (РАЗРЕШИМАЯ): W=50, Zn=100+50j. Решение есть, т.к. zn=2+1j находится снаружи r=1.
-    W_val = 50.0
-    Zn_val = 100 + 50j
+    W_val = 100.0
+    Zn_val = 70 + 50j
 
     calculate_normalized_matching(W=W_val, soprotivlenie_nagruzki=Zn_val)
 
