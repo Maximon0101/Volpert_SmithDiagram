@@ -1,110 +1,129 @@
-import skrf as rf
 import numpy as np
-import matplotlib.pyplot as plt
+import skrf as rf  # skrf нужен только для последней проверки, не для расчетов
+
+# --- Глобальное определение функции арккотангенса ---
+# np.arccot(x) = pi/2 - np.arctan(x)
+np.arccot = lambda x: np.pi / 2 - np.arctan(x)
 
 
-def matching_by_train():
-    print("\n--------------------------\nНачали согласование шлейфом\n")
-
-    # --- ИСХОДНЫЕ ДАННЫЕ ---
-    # Задача 1 (ВАША): W=100, Zn=30-50j. Решения нет, т.к. zn=0.3-0.5j находится внутри r=1.
-    # W_val = 100.0
-    # Zn_val = 30 - 50j
-
-    # Задача 2 (РАЗРЕШИМАЯ): W=50, Zn=100+50j. Решение есть, т.к. zn=2+1j находится снаружи r=1.
-    W_val = 100.0
-    Zn_val = 70 + 50j
-
-    calculate_normalized_matching(W=W_val, soprotivlenie_nagruzki=Zn_val)
-
-
-def calculate_normalized_matching(W, soprotivlenie_nagruzki):
+def calculate_parallel_stub_matching(W, soprotivlenie_nagruzki):
     """
-    Рассчитывает параметры согласования с помощью последовательного шлейфа,
-    используя фундаментальные математические формулы.
+    Рассчитывает параметры согласования с помощью ПАРАЛЛЕЛЬНОГО шлейфа.
+    Этот метод находит точку, БЛИЖАЙШУЮ к цели, что делает его надежным.
     """
-    print(f"\n--------------------------\nНачали нормированный расчет для W={W} Ом, Zn={soprotivlenie_nagruzki} Ом\n")
+    print(f"\n--- Расчет ПАРАЛЛЕЛЬНОГО согласования для W={W} Ом, Zn={soprotivlenie_nagruzki} Ом ---")
 
-    # --- 1. Фундаментальные расчеты ---
     z0 = W
     z_load = soprotivlenie_nagruzki
-    zn_load = z_load / z0
-
-    # Проверка на физическую возможность согласования
-    if zn_load.real < 1.0:
-        # Для последовательного шлейфа мы должны пересечь круг r=1. Если мы внутри, это невозможно.
-        # Точнее, если вся окружность КСВ лежит внутри круга r=1, согласование невозможно.
-        # Это условие неполное, но для большинства случаев оно верно.
-        # Более строгое условие - проверить, пересекается ли окружность |Gamma|=const с кругом r=1.
-        # Для простоты пока оставим так.
-        pass  # Уберем вывод об ошибке, чтобы код мог работать с другими методами в будущем
-
     gamma_load = (z_load - z0) / (z_load + z0)
 
-    # --- 2. Поиск точки подключения (dz) через вращение Gamma ---
-    z_at_dz_norm = None
-    dz_lambda = None
-    gamma_at_d_final = None
+    # --- Новый, надежный алгоритм поиска ---
+    min_diff = float('inf')  # Начальная "бесконечная" разница
+    best_solution = {}  # Словарь для хранения лучшего найденного решения
 
     for d_in_lambda in np.linspace(0, 0.5, 2001):
-        phase_shift = np.exp(-2j * 2 * np.pi * d_in_lambda)
-        gamma_at_d = gamma_load * phase_shift
+        gamma_at_d = gamma_load * np.exp(-2j * 2 * np.pi * d_in_lambda)
+        current_y_norm = (1 - gamma_at_d) / (1 + gamma_at_d)
+
+        current_diff = abs(current_y_norm.real - 1.0)
+
+        if current_diff < min_diff:
+            # Если текущая точка ближе к цели, чем все предыдущие, запоминаем ее
+            min_diff = current_diff
+            best_solution['dz_lambda'] = d_in_lambda
+            best_solution['y_at_dz_norm'] = current_y_norm
+
+    if not best_solution:
+        print("Решение не найдено.")
+        return
+
+    # --- Используем найденное лучшее решение ---
+    dz_lambda = best_solution['dz_lambda']
+    y_at_dz_norm = best_solution['y_at_dz_norm']
+
+    print(f"Результат: dz = {dz_lambda:.4f}λ")
+    print(f"       (Найденная нормализованная проводимость в этой точке: {y_at_dz_norm:.2f})")
+
+    required_susceptance_norm = -y_at_dz_norm.imag
+    cot_val_short = -required_susceptance_norm
+    beta_l_short = np.arccot(cot_val_short)
+    if beta_l_short < 0:
+        beta_l_short += np.pi
+    l_short_lambda = beta_l_short / (2 * np.pi)
+
+    # Расчет для разомкнутого шлейфа
+    tan_val_open = required_susceptance_norm
+    beta_l_open = np.arctan(tan_val_open)
+    if beta_l_open < 0:
+        beta_l_open += np.pi
+    l_open_lambda = beta_l_open / (2 * np.pi)
+
+    print(f"Результат: l_short = {l_short_lambda:.4f}λ")
+    print(f"Результат: l_open = {l_open_lambda:.4f}λ")
+
+    # --- Проверка результата ---
+    y_at_dz = y_at_dz_norm / z0
+    y_final = y_at_dz + 1j * (required_susceptance_norm / z0)
+    z_final = 1 / y_final
+    print("\n--- Проверка ---")
+    print(f"Итоговое комплексное сопротивление схемы: {z_final.real:.2f}{z_final.imag:+.2f}j Ом")
+
+
+def calculate_series_stub_matching(W, soprotivlenie_nagruzki):
+    """
+    Рассчитывает параметры ПОСЛЕДОВАТЕЛЬНОГО согласования.
+    """
+    print(f"\n--- Расчет ПОСЛЕДОВАТЕЛЬНОГО согласования для W={W} Ом, Zn={soprotivlenie_nagruzki} Ом ---")
+
+    z0 = W
+    z_load = soprotivlenie_nagruzki
+    gamma_load = (z_load - z0) / (z_load + z0)
+
+    min_diff = float('inf')
+    best_solution = {}
+
+    for d_in_lambda in np.linspace(0, 0.5, 2001):
+        gamma_at_d = gamma_load * np.exp(-2j * 2 * np.pi * d_in_lambda)
         z_at_d = z0 * (1 + gamma_at_d) / (1 - gamma_at_d)
         current_z_norm = z_at_d / z0
 
-        if np.isclose(current_z_norm.real, 1.0, atol=1e-4):  # atol - допустимая погрешность
-            dz_lambda = d_in_lambda
-            z_at_dz_norm = current_z_norm
-            gamma_at_d_final = gamma_at_d
-            break
+        current_diff = abs(current_z_norm.real - 1.0)
 
-    if dz_lambda is None:
-        print(
-            "Не удалось найти точку подключения. Это может означать, что для данных Zn и W согласование одним последовательным шлейфом физически невозможно.")
+        if current_diff < min_diff:
+            min_diff = current_diff
+            best_solution['dz_lambda'] = d_in_lambda
+            best_solution['z_at_dz_norm'] = current_z_norm
+
+    # Проверяем, смогли ли мы вообще приблизиться к цели.
+    # Если минимальная разница все еще большая, значит пересечения нет.
+    if min_diff > 0.01:  # 0.01 - это допустимая погрешность
+        print("Решение не найдено (физически невозможно для данных Zn и W).")
         return
 
-    print(f"--- Результат 1: Точка подключения шлейфа ---")
-    print(f"Расстояние от нагрузки (dz): {dz_lambda:.4f} * lambda")
-    print(f"Нормализованное сопротивление в этой точке: {z_at_dz_norm:.2f}")
+    dz_lambda = best_solution['dz_lambda']
+    z_at_dz_norm = best_solution['z_at_dz_norm']
 
-    # --- 3. Расчет длин шлейфов ---
+    print(f"Результат: dz = {dz_lambda:.4f}λ")
+
     required_reactance = -z_at_dz_norm.imag * z0
-    print(f"\nТребуемое реактивное сопротивление шлейфа: {required_reactance:+.2f}j Ом")
-
-    # Для короткозамкнутого шлейфа: Z_stub = j*Z0*tan(beta*l)
     tan_val_short = required_reactance / z0
     beta_l_short = np.arctan(tan_val_short)
     if beta_l_short < 0:
         beta_l_short += np.pi
     l_short_lambda = beta_l_short / (2 * np.pi)
 
-    # Для разомкнутого шлейфа: Z_stub = -j*Z0*cot(beta*l)
-    tan_val_open = -z0 / required_reactance
-    beta_l_open = np.arctan(tan_val_open)
-    if beta_l_open < 0:
-        beta_l_open += np.pi
-    l_open_lambda = beta_l_open / (2 * np.pi)
+    print(f"Результат: l_short = {l_short_lambda:.4f}λ")
 
-    print(f"\n--- Результат 2: Длины шлейфов ---")
-    print(f"Длина короткозамкнутого шлейфа: {l_short_lambda:.4f} * lambda")
-    print(f"Длина разомкнутого шлейфа: {l_open_lambda:.4f} * lambda")
 
-    # --- 4. Проверка и визуализация с помощью skrf ---
-    frequency = rf.Frequency(start=1, stop=1, npoints=1, unit='Hz')
-    load_network = rf.Network(frequency=frequency, s=np.array([[[gamma_load]]]), z0=z0)
-    network_at_dz = rf.Network(frequency=frequency, s=np.array([[[gamma_at_d_final]]]), z0=z0)
-    z_final = z_at_dz_norm * z0 + 1j * required_reactance
-    gamma_final = (z_final - z0) / (z_final + z0)
-    final_network = rf.Network(frequency=frequency, s=np.array([[[gamma_final]]]), z0=z0)
+# --- Начальная функция, как вы просили ---
+def matching_by_train():
+    print("\n--------------------------\nНачали согласование шлейфом\n")
 
-    print("\n--- Проверка ---")
-    print(f"Итоговое комплексное сопротивление схемы: {final_network.z[0, 0, 0]:.2f} Ом")
+    W_val = 100.0
+    Zn_val = 70 - 30j
 
-    plt.figure(figsize=(10, 10))
-    rf.plotting.smith()
-    load_network.plot_s_smith(marker='o', s=100, color='red', label='Z нагрузки')
-    network_at_dz.plot_s_smith(marker='x', s=150, color='blue', label='Z в точке dz')
-    final_network.plot_s_smith(marker='*', s=200, color='green', label='Z после согласования')
-    plt.legend()
-    plt.title('Процесс согласования на диаграмме сопротивлений (математический расчет)')
-    plt.show()
+    # Вызываем обе функции для демонстрации
+    calculate_parallel_stub_matching(W=W_val, soprotivlenie_nagruzki=Zn_val)
+    calculate_series_stub_matching(W=W_val, soprotivlenie_nagruzki=Zn_val)
+
+
