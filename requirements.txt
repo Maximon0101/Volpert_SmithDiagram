@@ -1,2 +1,2 @@
-numpy~=2.3.3
-scikit-rf~=1.8.0
+numpy
+scikit-rf
