@@ -16,5 +16,3 @@ def choose_program_number():
             find_Zc()
         case 3:
             matching_by_train()
-        case 4:
-            print("Aboba")
