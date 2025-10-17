@@ -29,28 +29,28 @@ def matching_by_train():
     if is_series_str in ['Y', 'y', '']: is_series = True
     else: is_series = False
 
-    if is_series: calculate_series_stub_matching(W=W_val, soprotivlenie_nagruzki=Zn_val)
-    else: calculate_parallel_stub_matching(W=W_val, soprotivlenie_nagruzki=Zn_val)
+    if is_series: calculate_series_stub_matching(W=W_val, Zn=Zn_val)
+    else: calculate_parallel_stub_matching(W=W_val, Zn=Zn_val)
 
 
 np.arccot = lambda x: np.pi / 2 - np.arctan(x)
 
 
-def calculate_parallel_stub_matching(W, soprotivlenie_nagruzki):
+def calculate_parallel_stub_matching(W, Zn):
     """
     Рассчитывает параметры согласования с помощью ПАРАЛЛЕЛЬНОГО шлейфа.
     Этот метод находит точку, БЛИЖАЙШУЮ к цели, что делает его надежным.
     """
-    print(f"\n--- Расчет ПАРАЛЛЕЛЬНОГО согласования для W={W} Ом, Zn={soprotivlenie_nagruzki} Ом ---")
+    print(f"\n--- Расчет ПАРАЛЛЕЛЬНОГО согласования для W={W} Ом, Zn={Zn} Ом ---")
 
 
     # --- 1. Начальные расчеты ---
     z0 = W                                      # Присваиваем волновое сопротивление переменной z0 для краткости
-    z_load = soprotivlenie_nagruzki             # Присваиваем сопротивление нагрузки
+    z_load = Zn                                 # Присваиваем сопротивление нагрузки
     gamma_load = (z_load - z0) / (z_load + z0)  # Рассчитываем коэффициент отражения от нагрузки по стандартной формуле
 
 
-    # --- 2. Поиск точки подключения (надежный алгоритм) ---
+    # --- 2. Поиск точки подключения ---
     min_diff = float('inf')     # Задаем начальную "бесконечную" разницу для поиска минимума
     best_solution = {}          # Создаем словарь для хранения лучшего найденного решения
 
@@ -59,10 +59,10 @@ def calculate_parallel_stub_matching(W, soprotivlenie_nagruzki):
         gamma_at_d = gamma_load * np.exp(-2j * 2 * np.pi * d_in_lambda)     # "Движение по линии" - это поворот вектора Gamma в комплексной плоскости
         current_y_norm = (1 - gamma_at_d) / (1 + gamma_at_d)                # Преобразуем повернутый Gamma в НОРМАЛИЗОВАННУЮ ПРОВОДИМОСТЬ (y)
 
-        current_diff = abs(current_y_norm.real - 1.0)   # Находим, насколько реальная часть текущей проводимости отличается от 1.0
+        current_diff = abs(current_y_norm.real - 1.0)                       # Находим, насколько реальная часть текущей проводимости отличается от 1.0
 
 
-        # Если текущая точка ближе к цели (Re(y)=1), чем все предыдущие...
+        # Если текущая точка ближе к цели (Re(y) = 1), чем все предыдущие...
         if current_diff < min_diff:
             min_diff = current_diff  # ...обновляем минимальную разницу...
             # ...и запоминаем все параметры этой лучшей точки
@@ -114,16 +114,16 @@ def calculate_parallel_stub_matching(W, soprotivlenie_nagruzki):
     print(f"Итоговое комплексное сопротивление схемы: {z_final.real:.2f}{z_final.imag:+.2f}j Ом")
 
 
-def calculate_series_stub_matching(W, soprotivlenie_nagruzki):
+def calculate_series_stub_matching(W, Zn):
     """
     Рассчитывает параметры ПОСЛЕДОВАТЕЛЬНОГО согласования.
     """
-    print(f"\n--- Расчет ПОСЛЕДОВАТЕЛЬНОГО согласования для W={W} Ом, Zn={soprotivlenie_nagruzki} Ом ---")
+    print(f"\n--- Расчет ПОСЛЕДОВАТЕЛЬНОГО согласования для W={W} Ом, Zn={Zn} Ом ---")
 
 
     # --- 1. Начальные расчеты ---
     z0 = W
-    z_load = soprotivlenie_nagruzki
+    z_load = Zn
     gamma_load = (z_load - z0) / (z_load + z0)
 
 
