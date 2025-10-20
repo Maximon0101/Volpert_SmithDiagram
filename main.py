@@ -4,7 +4,8 @@ from utils.choose_program_number import choose_program_number
 def main():
     do_program = True
 
-    print("Добро пожаловать в программу для работы с диаграммой Вольперта-Смита\n")
+    print("Добро пожаловать в программу для работы с диаграммой Вольперта-Смита\n"
+          "Для работы программы измените раскладку клавиатуры на en\n")
 
     while do_program:
         choose_program_number()
