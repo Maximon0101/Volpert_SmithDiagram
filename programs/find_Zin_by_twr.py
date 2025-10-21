@@ -55,7 +55,3 @@ def find_Zin_by_twr():
     print(f"\n--- Результаты расчета ---")
     print(f"Входное сопротивление (Zin) на расстоянии dz = {dz}λ от минимума напряжения составляет:")
     print(f"Zin = {Zin_val.real:.2f}{Zin_val.imag:+.2f}j Ом")
-
-
-# --- Запуск функции ---
-find_Zin_by_twr()
