@@ -15,8 +15,10 @@ def find_Zin():
     else:
         W = float(W)
 
-    Rn = float(input("Введите активную составляющую нагрузки Rn: "))
-    Xn = float(input("Введите реактивную составляющую нагрузки Xn (со знаком и без j): "))
+    Rn_input = input("Введите активную составляющую нагрузки Rn (по умолчанию 0): ")
+    Rn = float(Rn_input) if Rn_input != '' else 0.0
+    Xn_input = input("Введите реактивную составляющую нагрузки Xn со знаком (по умолчанию 0): ")
+    Xn = float(Xn_input) if Xn_input != '' else 0.0
     Zn = complex(Rn, Xn)
 
     dz = float(input("Введите расстояние от нагрузки, нормированное относительно λ: "))
