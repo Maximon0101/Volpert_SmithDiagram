@@ -104,8 +104,7 @@ def calculate_series_stub_matching(W, Zn):
     best_solution = {}
     for d_in_lambda in np.linspace(0, 0.5, 2001):
         gamma_at_d = gamma_load * np.exp(-2j * 2 * np.pi * d_in_lambda)
-        z_at_d = z0 * (1 + gamma_at_d) / (1 - gamma_at_d)
-        current_z_norm = z_at_d / z0
+        current_z_norm = (1 + gamma_at_d) / (1 - gamma_at_d)
         current_diff = abs(current_z_norm.real - 1.0)
         if current_diff < min_diff:
             min_diff = current_diff
@@ -124,12 +123,12 @@ def calculate_series_stub_matching(W, Zn):
     required_reactance = -z_at_dz_norm.imag * z0
     print(f"\nТребуемое реактивное сопротивление шлейфа: {required_reactance:+.2f}j Ом")
 
-    tan_val_short = required_reactance / z0
+    tan_val_short = -z_at_dz_norm.imag
     beta_l_short = np.arctan(tan_val_short)
     if beta_l_short < 0: beta_l_short += np.pi
     l_short_lambda = beta_l_short / (2 * np.pi)
 
-    cot_val_open = -required_reactance / z0
+    cot_val_open = z_at_dz_norm.imag
     beta_l_open = np.arccot(cot_val_open)
     if beta_l_open < 0: beta_l_open += np.pi
     l_open_lambda = beta_l_open / (2 * np.pi)
@@ -137,10 +136,7 @@ def calculate_series_stub_matching(W, Zn):
     print(f"\nРезультат: l_short = {l_short_lambda:.4f}λ")
     print(f"Результат: l_open = {l_open_lambda:.4f}λ")
 
-    # --- 4. Проверка результата ---
-    # Сопротивление в точке подключения (не нормированное)
     z_at_dz = z_at_dz_norm * z0
-    # Суммируем сопротивления (т.к. соединение последовательное), шлейф добавляет только реактивность
     z_final = z_at_dz + 1j * required_reactance
 
     print("\n--- Проверка ---")
